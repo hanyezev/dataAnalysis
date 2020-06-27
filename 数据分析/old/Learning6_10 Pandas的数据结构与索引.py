@@ -49,6 +49,7 @@ pd.Series(stock_price_dict)
 '''
 DataFrame是Series在水平方向的扩展，是一个多列表格型的数据结构
 '''
+
 frame0 = pd.DataFrame(np.arange(6).reshape(2, 3),
                       index=[2000, 2001], columns=["A", "B", "C"])
 print(frame0)
