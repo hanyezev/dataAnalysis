@@ -1,5 +1,6 @@
 import xlrd  # 引入模块
 import time
+import numpy as np
 from pandas import DataFrame
 import pandas as pd
 
@@ -59,7 +60,7 @@ def searchAvg(startTime):
             temp_r.append(ram_)
             temp_c.append(cpu_)
     if flag == 0:
-        return 0, 0
+        return np.nan, np.nan
     return format(sum(temp_r) / len(temp_r), '.4f'), format(sum(temp_c) / len(temp_c), '.4f')
 
 
@@ -75,13 +76,13 @@ for i in range(len(X_timeStamp)):
 # print(len(X_date))
 
 # 生成数据表
-# data = {
-#     '日期': X_date,
-#     'DATA_DT': X_timeStamp,
-#     '内存负载': Y1_ram,
-#     '主机CPU平均负载': Y2_cpu
-# }
-# df = DataFrame(data)
-# df.to_excel("C:/Users/16526/Desktop/电网项目/服务器性能数据.xlsx")
+data = {
+    '日期': X_date,
+    'DATA_DT': X_timeStamp,
+    '内存负载': Y1_ram,
+    '主机CPU平均负载': Y2_cpu
+}
+df = DataFrame(data)
+df.to_excel("C:/Users/16526/Desktop/电网项目/服务器性能数据.xlsx")
 
 print("success")
