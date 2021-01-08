@@ -21,6 +21,7 @@ import math
 import os
 from statsmodels.graphics.api import qqplot
 from statsmodels.stats.stattools import durbin_watson #DW检验
+from pmdarima.arima import auto_arima
 
 # 绘图plt设置中文和负号正常显示
 plt.rcParams['font.sans-serif'] = 'Microsoft YaHei'
@@ -129,13 +130,13 @@ def evaluate(truth, predict, n=None, p=None):
     R2 = 1 - sum(squaredError)/sum(truthDeviation)  # 决定系数
     MAPE = sum(percentError)/len(percentError)  # 平均百分比误差MAPE
 
-    R2_adj = 1 - ((1-R2)(n-1))/(n-p-1)  # 矫正决定系数
-    return MSE,RMSE,MAE,MAPE,R2,R2_adj
+    # R2_adj = 1 - ((1-R2)(n-1))/(n-p-1)  # 矫正决定系数
+    return MSE,RMSE,MAE,MAPE,R2
 
 if __name__ == "__main__":
     # 参数
     filename = "服务器性能数据.xlsx"
-    KPI = "内存负载"
+    KPI = "主机CPU平均负载" # 内存负载
     window = 24   # K-近邻插值的窗口大小
     freq = 24   # 周期大小
     is_lack = True
@@ -184,26 +185,13 @@ if __name__ == "__main__":
     plot_acf(KPI_dif).show()
     plot_pacf(KPI_dif).show()
 
-    # # 9.1 手动定阶
-    # p_min, p_max = 3, 4
-    # q_min, q_max = 3, 4
-    # d_min, d_max = 0, 1
-    # results_bic = plot_BIC(KPI_dif,p_min, p_max, q_min, q_max, d_min, d_max)
-    # fig, ax = plt.subplots(figsize=(10, 8))
-    # ax = sns.heatmap(results_bic,
-    #                  mask=results_bic.isnull(),
-    #                  ax=ax,
-    #                  annot=True,
-    #                  fmt='.2f',
-    #                  )
-    # ax.set_title('BIC')
-    # plt.show()
-
     # 10. 建模
-    model = sm.tsa.ARIMA(train.values, order=(7, 1, 4))
-    result = model.fit()
-    forecast, stderr, conf = result.forecast(12)
-    resid = result.resid
+    model = auto_arima(train, trace=True, error_action='ignore', suppress_warnings=True)
+    model.fit(train)
+    # 11.预测
+    gdp_pre = model.predict(n_periods=len(test),return_conf_int=True)
+    forecast, stderr = gdp_pre
+    resid = model.resid()
     # 11.检验
     if test_method == "QQ":
         plt.figure(figsize=(12, 8))
@@ -212,7 +200,7 @@ if __name__ == "__main__":
         print('D-W检验值为{}'.format(durbin_watson(resid)))
     # 12.评价指标
     if is_delete_freq:
-        MSE,RMSE,MAE,MAPE,R2,R2_adj = evaluate(test, forecast + seasonal_series[current_time: current_time+h],n=168, p=25)
+        MSE,RMSE,MAE,MAPE,R2 = evaluate(test.values, forecast + seasonal_series[current_time: current_time+h])
     else:
-        MSE, RMSE, MAE, MAPE, R2, R2_adj = evaluate(test, forecast,n=168, p=25)
-    print(f"MSE:{MSE}\nRMSE:{RMSE}\nMAE:{MAE}\nMAPE:{MAPE}\nR2:{R2}\nR2_adj:{R2_adj}")
+        MSE, RMSE, MAE, MAPE, R2 = evaluate(test.values, forecast)
+    print(f"MSE:{MSE}\nRMSE:{RMSE}\nMAE:{MAE}\nMAPE:{MAPE}\nR2:{R2}\n")

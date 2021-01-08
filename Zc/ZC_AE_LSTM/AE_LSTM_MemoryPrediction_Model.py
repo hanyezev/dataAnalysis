@@ -13,6 +13,9 @@ from sklearn.utils import shuffle
 from pytorchtools import EarlyStopping
 import math
 import os
+from sklearn.metrics import mean_squared_error # 均方误差
+from sklearn.metrics import mean_absolute_error # 平方绝对误差
+from sklearn.metrics import r2_score # R square
 
 start = time.time()
 
@@ -51,23 +54,6 @@ def knn_mean(ts, n):
             out[i] = np.nanmean(ts_near)
     return out
 
-def com_test(arr1, arr2):
-    MSEs = []
-    errors = []
-    MAPEs = []
-    num_temp = len(arr1)
-
-    for i in range(num_temp):
-        error = abs(arr1[i] - arr2[i])
-        errors.append(error)
-        MSEs.append(error ** 2)
-        MAPEs.append((error / arr2[i]) * 100)
-
-    MSE = np.mean(MSEs)
-    MAPE = np.mean(MAPEs)
-
-    return MSE, MAPE, MAPEs, errors
-
 def mape(y_true, y_pred):
     """
     参数:
@@ -77,8 +63,8 @@ def mape(y_true, y_pred):
     返回:
     mape -- MAPE 评价指标
     """
-    y_true = y_true.reshape(-1).detach().numpy()
-    y_pred = y_pred.reshape(-1).detach().numpy()
+    y_true = y_true.reshape(-1)
+    y_pred = y_pred.reshape(-1)
     n = len(y_true)
     mape = sum(np.abs((y_true - y_pred) / y_true)) / n * 100
     return mape
@@ -136,7 +122,7 @@ class lstm(nn.Module):
 filename = "服务器性能数据.xlsx"
 KPI = "CPU平均负载"
 num_hour = 336      # 历史数据个数
-pred_h = 12     # 预测步数
+pred_h = 1     # 预测步数
 
 # 1.读取data数据
 df_original = read_file(filename)
@@ -233,7 +219,7 @@ outputs, outputs_hat = model_AE2(test_X)
 test_X2 = outputs_hat.reshape(-1,14,6)
 
 # 13.建立LSTM模型
-model_lstm = lstm(6, 64, 12, 2)
+model_lstm = lstm(6, 64, pred_h, 2)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model_lstm.parameters(), lr=1e-2)
 epoch_n = 1000
@@ -286,14 +272,48 @@ model_lstm2 = torch.load('LSTM.pkl')
 
 # 16.验证
 outputs = model_lstm2(test_X2)
-predict = outputs*(max_value-min_value) + min_value
-truth = torch.Tensor(test_truth.values.reshape(-1, 1, pred_h))
-print(f"测试集整体MSE: {criterion(predict, truth)}")
+predict = (outputs*(max_value-min_value) + min_value).squeeze().detach().numpy()     # (372*1*12)
+truth = test_truth.values.reshape(-1, pred_h) # 374*1
+MSE_test = mean_squared_error(truth, predict)
+MAE_test = mean_absolute_error(truth, predict)
+print(f"测试集整体MSE: {MSE_test}")
+print(f"测试集整体RMSE: {np.sqrt(MSE_test)}")
+print(f"测试集整体MAE: {MAE_test}")
 print(f"测试集整体MAPE: {mape(truth, predict)}")
+
+print("#########################")
 
 outputs = model_lstm2(train_X2)
 loss = criterion(outputs, train_Y)
-predict2 = outputs*(max_value-min_value) + min_value
-truth2 =  torch.Tensor(train_truth.values.reshape(-1, 1, pred_h))
-print(f"训练集整体MSE: {criterion(predict2, truth2)}")
+predict2 = (outputs*(max_value-min_value) + min_value).squeeze().detach().numpy()
+truth2 = train_truth.values.reshape(-1, pred_h)
+MSE2_test= mean_squared_error(truth2, predict2)
+MAE2_test = mean_absolute_error(truth2, predict2)
+print(f"测试集整体MSE: {MSE2_test}")
+print(f"训练集整体RMSE: {np.sqrt(MSE2_test)}")
+print(f"训练集整体MAE: {MAE2_test}")
 print(f"训练集整体MAPE: {mape(truth2, predict2)}")
+
+# 单步
+# 运行时长为:440s
+# 测试集整体MSE: 0.2671054194900366
+# 测试集整体RMSE: 0.5168224254906482
+# 测试集整体MAE: 0.3764193639724547
+# 测试集整体MAPE: 11.982768998599603
+# #########################
+# 测试集整体MSE: 0.15670572705057392
+# 训练集整体RMSE: 0.39586074199214794
+# 训练集整体MAE: 0.3001140681876499
+# 训练集整体MAPE: 9.791969294398585
+
+# 12步
+# 运行时长为:366s
+# 测试集整体MSE: 0.23951593842185093
+# 测试集整体RMSE: 0.48940365591385904
+# 测试集整体MAE: 0.36416701097768583
+# 测试集整体MAPE: 11.4422641610776
+# #########################
+# 测试集整体MSE: 0.1429487094070513
+# 训练集整体RMSE: 0.37808558476494614
+# 训练集整体MAE: 0.2846255429054974
+# 训练集整体MAPE: 9.214539993524127

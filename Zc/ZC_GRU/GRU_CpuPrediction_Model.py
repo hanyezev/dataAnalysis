@@ -69,10 +69,10 @@ def mape(y_true, y_pred):
     mape = sum(np.abs((y_true - y_pred) / y_true)) / n * 100
     return mape
 
-class lstm(nn.Module):
+class GRU(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, num_layer):
-        super(lstm, self).__init__()
-        self.layer1 = nn.LSTM(input_size, hidden_size, num_layer, batch_first=True)
+        super(GRU, self).__init__()
+        self.layer1 = nn.GRU(input_size, hidden_size, num_layer, batch_first=True)
         self.layer2 = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
@@ -94,7 +94,7 @@ class lstm(nn.Module):
 filename = "服务器性能数据.xlsx"
 KPI = "CPU平均负载"
 num_hour = 336      # 历史数据个数
-pred_h = 12     # 预测步数
+pred_h = 1     # 预测步数
 
 # 1.读取data数据
 df_original = read_file(filename)
@@ -152,7 +152,7 @@ test_X = torch.Tensor(test_data_normalized[:,0:-pred_h].reshape(-1, int(num_hour
 test_Y = torch.Tensor(test_data_normalized[:,-pred_h:].reshape(-1, 1, pred_h))
 
 # 8.建模以及模型参数
-model = lstm(24, 128, pred_h, 2)
+model = GRU(24, 128, pred_h, 2)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
 epoch_n = 1000
@@ -221,7 +221,7 @@ outputs = model2(train_X)
 loss = criterion(outputs, train_Y)
 predict2 = (outputs*(max_value-min_value) + min_value).squeeze().detach().numpy()
 truth2 = train_truth.values.reshape(-1, pred_h)
-MSE2_test = mean_squared_error(truth2, predict2)
+MSE2_test= mean_squared_error(truth2, predict2)
 MAE2_test = mean_absolute_error(truth2, predict2)
 print(f"测试集整体MSE: {MSE2_test}")
 print(f"训练集整体RMSE: {np.sqrt(MSE2_test)}")
@@ -229,36 +229,52 @@ print(f"训练集整体MAE: {MAE2_test}")
 print(f"训练集整体MAPE: {mape(truth2, predict2)}")
 
 # 单步
-# 运行时长为:199s
-# 测试集整体MSE: 0.17427744662114192
-# 测试集整体RMSE: 0.4174655035103403
-# 测试集整体MAE: 0.30725093485413874
-# 测试集整体MAPE: 9.525343965741696
+# 运行时长为:208s
+# 测试集整体MSE: 0.17708381468441506
+# 测试集整体RMSE: 0.420813277695007
+# 测试集整体MAE: 0.3201493875775493
+# 测试集整体MAPE: 10.425444106991275
 # #########################
-# 测试集整体MSE: 0.21059750810486286
-# 训练集整体RMSE: 0.4589090412106334
-# 训练集整体MAE: 0.32634750179237815
-# 训练集整体MAPE: 10.020746081507555
+# 测试集整体MSE: 0.18957402351570943
+# 训练集整体RMSE: 0.43540099163381496
+# 训练集整体MAE: 0.32413083328595027
+# 训练集整体MAPE: 10.508447091235565
+
+#  单步
+# 运行时长为:233s
+# 测试集整体MSE: 0.16905632428814987
+# 测试集整体RMSE: 0.4111645951296754
+# 测试集整体MAE: 0.3003216803129529
+# 测试集整体MAPE: 9.277163117884966
+# #########################
+# 测试集整体MSE: 0.1940520373677871
+# 训练集整体RMSE: 0.4405133793289224
+# 训练集整体MAE: 0.3142916408278913
+# 训练集整体MAPE: 9.62223000042344
 
 # 12步
-# 运行时长为:162s
-# 测试集整体 MSE: 0.4258088086380029
-# 测试集整体 RMSE: 0.6525402735755111
-# 测试集整体 MAE: 0.47927065099535326
-# 测试集整体 MAPE: 14.94566663796186
+# 运行时长为:281s
+# 测试集整体MSE: 0.2680540010941607
+# 测试集整体RMSE: 0.5177393177016409
+# 测试集整体MAE: 0.37310739345536587
+# 测试集整体MAPE: 11.510203741591212
 # #########################
-# 测试集整体 MSE: 0.3628819550264834
-# 训练集整体 RMSE: 0.6023968418131717
-# 训练集整体 MAE: 0.4418462479491229
-# 训练集整体 MAPE: 14.274382436328677
+# 测试集整体MSE: 0.15849217513028172
+# 训练集整体RMSE: 0.398110757365688
+# 训练集整体MAE: 0.29647410060151796
+# 训练集整体MAPE: 9.48747768024728
 
-# 运行时长为:161s
-# 测试集整体MSE: 0.46660873563215755
-# 测试集整体RMSE: 0.6830876485723905
-# 测试集整体MAE: 0.5054347385663819
-# 测试集整体MAPE: 15.730368901719258
+# 12步
+# 运行时长为:314s
+# 测试集整体MSE: 0.2621011439447375
+# 测试集整体RMSE: 0.5119581466728872
+# 测试集整体MAE: 0.3721397018894495
+# 测试集整体MAPE: 11.275024044347507
 # #########################
-# 测试集整体MSE: 0.39690322095634983
-# 训练集整体RMSE: 0.6300025563093771
-# 训练集整体MAE: 0.46897641583553323
-# 训练集整体MAPE: 15.137018079854741
+# 测试集整体MSE: 0.16921210652951987
+# 训练集整体RMSE: 0.4113539917510463
+# 训练集整体MAE: 0.3028333407418222
+# 训练集整体MAPE: 9.406582216547264
+
+
+

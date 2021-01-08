@@ -13,6 +13,10 @@ from sklearn.utils import shuffle
 from pytorchtools import EarlyStopping
 import math
 import os
+from sklearn.metrics import mean_squared_error # 均方误差
+from sklearn.metrics import mean_absolute_error # 平方绝对误差
+from sklearn.metrics import r2_score # R square
+
 
 start = time.time()
 
@@ -51,22 +55,6 @@ def knn_mean(ts, n):
             out[i] = np.nanmean(ts_near)
     return out
 
-def com_test(arr1, arr2):
-    MSEs = []
-    errors = []
-    MAPEs = []
-    num_temp = len(arr1)
-
-    for i in range(num_temp):
-        error = abs(arr1[i] - arr2[i])
-        errors.append(error)
-        MSEs.append(error ** 2)
-        MAPEs.append((error / arr2[i]) * 100)
-
-    MSE = np.mean(MSEs)
-    MAPE = np.mean(MAPEs)
-
-    return MSE, MAPE, MAPEs, errors
 
 def mape(y_true, y_pred):
     """
@@ -77,8 +65,8 @@ def mape(y_true, y_pred):
     返回:
     mape -- MAPE 评价指标
     """
-    y_true = y_true.reshape(-1).detach().cpu().numpy()
-    y_pred = y_pred.reshape(-1).detach().cpu().numpy()
+    y_true = y_true.reshape(-1)
+    y_pred = y_pred.reshape(-1)
     n = len(y_true)
     mape = sum(np.abs((y_true - y_pred) / y_true)) / n * 100
     return mape
@@ -148,7 +136,7 @@ for i in range(num_hour-1,0,-1):
 dataframe['t'] = data.values
 for i in range(1,pred_h+1):
     dataframe['t+'+str(i)] = data.shift(periods=-i, axis=0)
-print(dataframe)
+# print(dataframe)
 # 5.划分测试集和训练集
 np.random.seed(113)
 all_data = dataframe[num_hour:-pred_h]
@@ -227,11 +215,11 @@ outputs, outputs_hat = model_AE2(test_X)
 test_X2 = outputs_hat.to(device)
 
 # 13.建立LSTM模型
-model_lstm = lstm(6, 64, 12, 2).to(device)
+model_lstm = lstm(6, 64, pred_h, 2).to(device)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model_lstm.parameters(), lr=1e-2)
 epoch_n = 1000
-patience = 20
+patience = 15
 early_stopping = EarlyStopping(patience, verbose=True)
 
 # 14.开始训练
@@ -280,15 +268,117 @@ model_lstm2 = torch.load('LSTM.pkl')
 
 # 16.验证
 outputs = model_lstm2(test_X2)
-predict = outputs*(max_value-min_value) + min_value
-predict = predict.to(device)
-truth = torch.Tensor(test_truth.values.reshape(-1, 1, pred_h)).to(device)
-print(f"测试集整体MSE: {criterion(predict, truth)}")
+predict = (outputs*(max_value-min_value) + min_value).squeeze().detach().cpu().numpy()     # (372*1*12)
+truth = test_truth.values.reshape(-1, pred_h) # 374*1
+MSE_test = mean_squared_error(truth, predict)
+MAE_test = mean_absolute_error(truth, predict)
+print(f"测试集整体MSE: {MSE_test}")
+print(f"测试集整体RMSE: {np.sqrt(MSE_test)}")
+print(f"测试集整体MAE: {MAE_test}")
 print(f"测试集整体MAPE: {mape(truth, predict)}")
 
+print("#########################")
+
 outputs = model_lstm2(train_X2)
-predict2 = outputs*(max_value-min_value) + min_value
-predict2 = predict2.to(device)
-truth2 = torch.Tensor(train_truth.values.reshape(-1, 1, pred_h)).to(device)
-print(f"训练集整体MSE: {criterion(predict2, truth2)}")
+loss = criterion(outputs, train_Y)
+predict2 = (outputs*(max_value-min_value) + min_value).squeeze().detach().cpu().numpy()
+truth2 = train_truth.values.reshape(-1, pred_h)
+MSE2_test= mean_squared_error(truth2, predict2)
+MAE2_test = mean_absolute_error(truth2, predict2)
+print(f"测试集整体MSE: {MSE2_test}")
+print(f"训练集整体RMSE: {np.sqrt(MSE2_test)}")
+print(f"训练集整体MAE: {MAE2_test}")
 print(f"训练集整体MAPE: {mape(truth2, predict2)}")
+# 单步 patient=20
+# 运行时长为:42s
+# 测试集整体MSE: 0.21931451433493876
+# 测试集整体RMSE: 0.46831027570931943
+# 测试集整体MAE: 0.32638606677545345
+# 测试集整体MAPE: 10.090517329265879
+# #########################
+# 测试集整体MSE: 0.0680735116266215
+# 训练集整体RMSE: 0.26090901024422575
+# 训练集整体MAE: 0.19780401842188802
+# 训练集整体MAPE: 6.479497639360616
+
+
+# 12步
+# 运行时长为:42s
+# 测试集整体MSE: 0.21931451433493876
+# 测试集整体RMSE: 0.46831027570931943
+# 测试集整体MAE: 0.32638606677545345
+# 测试集整体MAPE: 10.090517329265879
+# #########################
+# 测试集整体MSE: 0.0680735116266215
+# 训练集整体RMSE: 0.26090901024422575
+# 训练集整体MAE: 0.19780401842188802
+# 训练集整体MAPE: 6.479497639360616
+
+# 12步
+# 运行时长为:42s
+# 测试集整体MSE: 0.21931451433493876
+# 测试集整体RMSE: 0.46831027570931943
+# 测试集整体MAE: 0.32638606677545345
+# 测试集整体MAPE: 10.090517329265879
+# #########################
+# 测试集整体MSE: 0.0680735116266215
+# 训练集整体RMSE: 0.26090901024422575
+# 训练集整体MAE: 0.19780401842188802
+# 训练集整体MAPE: 6.479497639360616
+
+# 单步 patient=10
+# 运行时长为:41s
+# 测试集整体MSE: 0.18653370200041508
+# 测试集整体RMSE: 0.431895475781369
+# 测试集整体MAE: 0.31510672124938705
+# 测试集整体MAPE: 9.840750073961065
+# #########################
+# 测试集整体MSE: 0.11088977807178374
+# 训练集整体RMSE: 0.3330011682739022
+# 训练集整体MAE: 0.24951698332025454
+# 训练集整体MAPE: 7.946400617981608
+
+# 运行时长为:40s  单步 patient=10
+# 测试集整体MSE: 0.23466562728967902
+# 测试集整体RMSE: 0.48442298385778415
+# 测试集整体MAE: 0.3751201419588971
+# 测试集整体MAPE: 12.246920157591951
+# #########################
+# 测试集整体MSE: 0.21342298911045446
+# 训练集整体RMSE: 0.46197726038242887
+# 训练集整体MAE: 0.352520390134304
+# 训练集整体MAPE: 11.57672633582315
+
+# 运行时长为:42s  单步 patient=15
+# 测试集整体MSE: 0.23841569351505454
+# 测试集整体RMSE: 0.48827829515047516
+# 测试集整体MAE: 0.3370494654808963
+# 测试集整体MAPE: 10.446441655437772
+# #########################
+# 测试集整体MSE: 0.039460511827212275
+# 训练集整体RMSE: 0.19864670102272597
+# 训练集整体MAE: 0.15155104862666577
+# 训练集整体MAPE: 5.01820800854152
+
+# 12步 patient=15
+# 运行时长为:42s
+# 测试集整体MSE: 0.2824795497420343
+# 测试集整体RMSE: 0.5314880523041269
+# 测试集整体MAE: 0.4017875812241689
+# 测试集整体MAPE: 13.082345976508346
+# #########################
+# 测试集整体MSE: 0.210321969951648
+# 训练集整体RMSE: 0.458608732964875
+# 训练集整体MAE: 0.3488798285724914
+# 训练集整体MAPE: 11.731665539055035
+
+# 运行时长为:43s
+# 测试集整体MSE: 0.17964184493417948
+# 测试集整体RMSE: 0.42384176874652113
+# 测试集整体MAE: 0.305106533088709
+# 测试集整体MAPE: 9.544465936974339
+# #########################
+# 测试集整体MSE: 0.05476845677034051
+# 训练集整体RMSE: 0.23402661551699735
+# 训练集整体MAE: 0.1795271871349368
+# 训练集整体MAPE: 5.925687214204485
